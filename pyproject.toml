@@ -5,6 +5,9 @@ description = "A \"hollow\" agent for use in testing"
 authors = ["Daniel Bluhm <dbluhm@pm.me>"]
 license = "Apache-2.0"
 include = ["echo/client/py.typed"]
+packages = [
+    { include = "echo" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"

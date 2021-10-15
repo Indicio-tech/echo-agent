@@ -18,7 +18,7 @@ RUN poetry config virtualenvs.create true; poetry config virtualenvs.in-project 
 
 COPY ./pyproject.toml ./poetry.lock ./
 RUN mkdir echo && touch echo/__init__.py
-RUN poetry install --no-dev -E client
+RUN poetry install --no-dev
 
 FROM python:3.7-alpine as main
 WORKDIR /usr/src/app
