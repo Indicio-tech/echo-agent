@@ -4,13 +4,16 @@ version = "0.1.0"
 description = "A \"hollow\" agent for use in testing"
 authors = ["Daniel Bluhm <dbluhm@pm.me>"]
 license = "Apache-2.0"
+include = ["echo/client/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-aries-staticagent = "^0.8.0"
+aries-staticagent = {git = "https://github.com/dbluhm/aries-staticagent-python", rev="880c1b6a6b2f8deca36437ed2e733b4728225142"}
 fastapi = "^0.67.0"
 pydantic = "^1.8.2"
 uvicorn = "^0.14.0"
+httpx = "^0.20.0"
+typing-extensions = "^3.10.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"

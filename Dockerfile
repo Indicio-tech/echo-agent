@@ -1,15 +1,30 @@
-FROM python:3.7
-WORKDIR /app
+FROM python:3.7-alpine AS base
+WORKDIR /usr/src/app
+RUN apk update && \
+  apk add \
+  build-base \
+  curl \
+  git \
+  libffi-dev \
+  openssh-client \
+  postgresql-dev
 
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | POETRY_HOME=/opt/poetry python - && \
-    cd /usr/local/bin && \
-    ln -s /opt/poetry/bin/poetry && \
-    poetry config virtualenvs.create false
+ENV POETRY_HOME=/opt/poetry \
+    VENV=/usr/src/app/.venv
+ENV PATH="$POETRY_HOME/bin:$VENV/bin:$PATH"
 
-COPY ./pyproject.toml ./poetry.lock /app/
+RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
+RUN poetry config virtualenvs.create true; poetry config virtualenvs.in-project true
 
-RUN poetry install --no-root
+COPY ./pyproject.toml ./poetry.lock ./
+RUN mkdir echo && touch echo/__init__.py
+RUN poetry install --no-dev -E client
 
-COPY ./echo.py /app/
-ENTRYPOINT ["/bin/sh", "-c", "poetry run \"$@\"", "--"]
-CMD python -m uvicorn echo:app --host 0.0.0.0 --port 80
+FROM python:3.7-alpine as main
+WORKDIR /usr/src/app
+COPY --from=base /usr/src/app /usr/src/app
+ENV PATH="/usr/src/app/.venv/bin:$PATH"
+
+COPY ./echo/ ./echo/
+ENTRYPOINT ["/bin/sh", "-c", "python -m \"$@\"", "--"]
+CMD ["uvicorn", "echo:app", "--host", "0.0.0.0", "--port", "80"]
