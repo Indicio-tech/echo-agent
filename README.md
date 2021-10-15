@@ -21,7 +21,7 @@ A native python client is included in this project.
 
 ```python
 
-from echo_agent import EchoClient, ConnectionInfo
+from echo_agent import EchoClient, ConnectionInfo, Message
 
 async def main():
 	async with EchoClient(base_url="http://localhost:3000") as echo:
@@ -30,4 +30,10 @@ async def main():
 			their_vk="<some verkey value>",
 			endpoint="http://example.com"
 		)
+		await echo.send_message(conn, Message.parse_from_obj({
+			"@type": "http://example.org/protocol/1.0/message",
+			"value": "example"
+		}))
+		response = await echo.wait_for_message(conn)
+		assert response
 ```
