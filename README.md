@@ -6,14 +6,15 @@ of scenarios, such as full agent testing and development.
 ## Running the Echo Agent
 
 ```sh
-$ docker run --rm -it -p 3000:80 dbluhm/echo-agent:latest
+docker run --rm -it -p 3000:80 dbluhm/echo-agent:latest
 ```
 
 ## Interacting with the Echo Agent
 
 After starting up the agent, you can use `http://localhost:3000/docs` to
-interact with the agent through an OpenAPI UI. A client may be generated from
-the `openapi.json` also provided at `http://localhost:3000/docs/openapi.json`.
+interact with the agent through an OpenAPI UI. A client for your language of
+choice may be generated from the `openapi.json` provided at
+`http://localhost:3000/openapi.json`.
 
 A native python client is included in this project.
 
