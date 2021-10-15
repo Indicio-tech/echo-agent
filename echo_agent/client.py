@@ -5,7 +5,7 @@ from aries_staticagent.message import Message
 from httpx import AsyncClient
 from pydantic.tools import parse_obj_as
 
-from . import ConnectionInfo, NewConnection
+from .models import ConnectionInfo, NewConnection
 
 class EchoClientError(Exception):
     """General echo client error."""
