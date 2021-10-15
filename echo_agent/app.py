@@ -50,7 +50,7 @@ async def new_connection(new_connection: NewConnection):
         target=Target(
             endpoint=new_connection.endpoint, their_vk=new_connection.their_vk
         ),
-        dispatcher=dispatcher
+        dispatcher=dispatcher,
     )
 
     # Store state

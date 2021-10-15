@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class NewConnection(BaseModel):
     seed: str = Field(..., example="00000000000000000000000000000000")
     endpoint: str
