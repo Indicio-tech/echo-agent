@@ -19,6 +19,7 @@ RUN poetry config virtualenvs.create true; poetry config virtualenvs.in-project 
 COPY ./pyproject.toml ./poetry.lock ./
 RUN mkdir echo_agent && touch echo_agent/__init__.py
 RUN poetry install --no-dev
+RUN poetry run pip install uvicorn
 
 FROM python:3.7-alpine as main
 WORKDIR /usr/src/app
