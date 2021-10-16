@@ -19,14 +19,15 @@ class NoOpenClient(EchoClientError):
 class EchoClient(AbstractAsyncContextManager):
     """Interact with a remote echo agent."""
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, **kwargs):
         self.base_url = base_url
         self.client: Optional[AsyncClient] = None
         self.active: int = 0
+        self.options = kwargs
 
     async def __aenter__(self):
         self.active += 1
-        self.client = AsyncClient(base_url=self.base_url)
+        self.client = AsyncClient(base_url=self.base_url, **self.options)
         await self.client.__aenter__()
         return self
 
@@ -48,7 +49,7 @@ class EchoClient(AbstractAsyncContextManager):
             json=NewConnection(seed=seed, endpoint=endpoint, their_vk=their_vk).dict(),
         )
 
-        if not response.is_error:
+        if response.is_error:
             raise EchoClientError("Failed to create new connection")
 
         return ConnectionInfo.parse_obj(response.json())
@@ -68,6 +69,16 @@ class EchoClient(AbstractAsyncContextManager):
             raise EchoClientError("Failed to send message")
 
         return response.content.decode()
+
+    async def get_connections(self) -> List[ConnectionInfo]:
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+        response = await self.client.get("/connections")
+        if response.is_error:
+            raise EchoClientError("Failed to retrieve connections")
+        return response.json()
 
     async def receive_message(self, packed_message: bytes):
         if not self.client:

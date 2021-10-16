@@ -12,3 +12,4 @@ class ConnectionInfo(BaseModel):
     did: str
     verkey: str
     their_vk: str
+    endpoint: str

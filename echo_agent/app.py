@@ -65,6 +65,7 @@ async def new_connection(new_connection: NewConnection):
         did=conn.did,
         verkey=conn.verkey_b58,
         their_vk=new_connection.their_vk,
+        endpoint=new_connection.endpoint,
     )
     LOGGER.debug("Returning new connection: %s", result)
     return result
@@ -84,6 +85,23 @@ async def delete_connection(connection_id: str):
     del messages[connection_id]
     del recip_key_to_connection_id[conn.verkey_b58]
     return connection_id
+
+
+@app.get(
+    "/connections", response_model=List[ConnectionInfo], operation_id="get_connections"
+)
+async def get_connections() -> List[ConnectionInfo]:
+    return [
+        ConnectionInfo(
+            connection_id=connection_id,
+            did=conn.did,
+            verkey=conn.verkey_b58,
+            their_vk=crypto.bytes_to_b58(conn.target.recipients[0]),
+            endpoint=conn.target.endpoint,
+        )
+        for connection_id, conn in connections.items()
+        if conn.target and conn.target.recipients
+    ]
 
 
 @app.post("/receive")
