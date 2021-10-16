@@ -70,6 +70,22 @@ async def new_connection(new_connection: NewConnection):
     return result
 
 
+@app.delete(
+    "/connection/{connection_id}", response_model=str, operation_id="delete_connection"
+)
+async def delete_connection(connection_id: str):
+    """Delete a connection."""
+    if connection_id not in connections:
+        raise HTTPException(
+            status_code=404, detail=f"No connection id matching {connection_id}"
+        )
+
+    conn = connections.pop(connection_id)
+    del messages[connection_id]
+    del recip_key_to_connection_id[conn.verkey_b58]
+    return connection_id
+
+
 @app.post("/receive")
 async def receive_message(request: Request):
     """Receive a new agent message and push onto the message queue."""

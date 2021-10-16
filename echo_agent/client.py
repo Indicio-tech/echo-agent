@@ -1,6 +1,5 @@
 """Client to Echo Agent."""
-from contextlib import asynccontextmanager
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from aries_staticagent.message import Message
 from httpx import AsyncClient
 from pydantic.tools import parse_obj_as
@@ -22,15 +21,18 @@ class EchoClient:
     def __init__(self, base_url: str):
         self.base_url = base_url
         self.client: Optional[AsyncClient] = None
+        self.active: int = 0
 
-    @asynccontextmanager
-    async def __call__(self):
-        async with AsyncClient(base_url=self.base_url) as client:
-            self.client = client
-            try:
-                yield self
-            finally:
-                self.client = None
+    async def __aenter__(self):
+        self.active += 1
+        self.client = AsyncClient(base_url=self.base_url)
+        await self.client.__aenter__()
+        return self
+
+    async def __aexit__(self):
+        self.active -= 1
+        if self.active < 1 and self.client:
+            await self.client.__aexit__()
 
     async def new_connection(
         self, seed: Union[str, bytes], endpoint: str, their_vk: str
@@ -49,6 +51,22 @@ class EchoClient:
             raise EchoClientError("Failed to create new connection")
 
         return ConnectionInfo.parse_obj(response.json())
+
+    async def delete_connection(self, connection: Union[str, ConnectionInfo]) -> str:
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        connection_id = (
+            connection if isinstance(connection, str) else connection.connection_id
+        )
+        response = await self.client.delete(f"/connection/{connection_id}")
+
+        if response.is_error:
+            raise EchoClientError("Failed to send message")
+
+        return response.content.decode()
 
     async def receive_message(self, packed_message: bytes):
         if not self.client:
@@ -103,7 +121,9 @@ class EchoClient:
         return Message.parse_obj(response.json())
 
     async def send_message(
-        self, connection: Union[str, ConnectionInfo], message: Message
+        self,
+        connection: Union[str, ConnectionInfo],
+        message: Union[Dict[str, Any], Message],
     ):
         if not self.client:
             raise NoOpenClient(
