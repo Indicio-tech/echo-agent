@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 from aries_staticagent.message import Message
 from httpx import AsyncClient
 from pydantic.tools import parse_obj_as
+from contextlib import AbstractAsyncContextManager
 
 from .models import ConnectionInfo, NewConnection
 
@@ -15,7 +16,7 @@ class NoOpenClient(EchoClientError):
     """Raised when no client is open."""
 
 
-class EchoClient:
+class EchoClient(AbstractAsyncContextManager):
     """Interact with a remote echo agent."""
 
     def __init__(self, base_url: str):
@@ -29,10 +30,10 @@ class EchoClient:
         await self.client.__aenter__()
         return self
 
-    async def __aexit__(self):
+    async def __aexit__(self, exc_type, exc_value, traceback):
         self.active -= 1
         if self.active < 1 and self.client:
-            await self.client.__aexit__()
+            await self.client.__aexit__(exc_type, exc_value, traceback)
 
     async def new_connection(
         self, seed: Union[str, bytes], endpoint: str, their_vk: str
