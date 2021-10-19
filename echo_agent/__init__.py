@@ -1,5 +1,4 @@
 import logging
-from aries_staticagent.message import Message
 
 from .models import ConnectionInfo, NewConnection
 
@@ -9,6 +8,7 @@ LOGGER = logging.getLogger(__name__)
 
 try:
     from .app import app
+    from aries_staticagent.message import Message
 except ModuleNotFoundError:
     LOGGER.warning("Server dependencies not found; install extra `server` if needed")
 

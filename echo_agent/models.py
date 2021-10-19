@@ -1,13 +1,15 @@
-from pydantic import BaseModel, Field
+from dataclasses import dataclass, field
 
 
-class NewConnection(BaseModel):
-    seed: str = Field(..., example="00000000000000000000000000000000")
+@dataclass
+class NewConnection:
+    seed: str = field(metadata={"example": "00000000000000000000000000000000"})
     endpoint: str
     their_vk: str
 
 
-class ConnectionInfo(BaseModel):
+@dataclass
+class ConnectionInfo:
     connection_id: str
     did: str
     verkey: str

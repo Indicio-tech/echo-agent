@@ -1,9 +1,9 @@
 """Client to Echo Agent."""
-from typing import Any, Dict, List, Optional, Union
-from aries_staticagent.message import Message
-from httpx import AsyncClient
-from pydantic.tools import parse_obj_as
 from contextlib import AbstractAsyncContextManager
+from dataclasses import asdict
+from typing import Any, List, Mapping, Optional, Union
+
+from httpx import AsyncClient
 
 from .models import ConnectionInfo, NewConnection
 
@@ -46,7 +46,7 @@ class EchoClient(AbstractAsyncContextManager):
 
         response = await self.client.post(
             "/connection",
-            json=NewConnection(seed=seed, endpoint=endpoint, their_vk=their_vk).dict(),
+            json=asdict(NewConnection(seed=seed, endpoint=endpoint, their_vk=their_vk)),
         )
 
         if response.is_error:
@@ -54,7 +54,7 @@ class EchoClient(AbstractAsyncContextManager):
                 f"Failed to create new connection: {response.content}"
             )
 
-        return ConnectionInfo.parse_obj(response.json())
+        return ConnectionInfo(**response.json())
 
     async def delete_connection(self, connection: Union[str, ConnectionInfo]) -> str:
         if not self.client:
@@ -80,7 +80,7 @@ class EchoClient(AbstractAsyncContextManager):
         response = await self.client.get("/connections")
         if response.is_error:
             raise EchoClientError("Failed to retrieve connections")
-        return response.json()
+        return [ConnectionInfo(**info) for info in response.json()]
 
     async def new_message(self, packed_message: bytes):
         if not self.client:
@@ -95,7 +95,7 @@ class EchoClient(AbstractAsyncContextManager):
 
     async def get_messages(
         self, connection: Union[str, ConnectionInfo]
-    ) -> List[Message]:
+    ) -> List[Mapping[str, Any]]:
         if not self.client:
             raise NoOpenClient(
                 "No client has been opened; use `async with echo_client`"
@@ -109,7 +109,7 @@ class EchoClient(AbstractAsyncContextManager):
         if response.is_error:
             raise EchoClientError(f"Failed to retrieve messages: {response.content}")
 
-        return parse_obj_as(List[Message], response.json())
+        return response.json()
 
     async def get_message(
         self,
@@ -118,7 +118,7 @@ class EchoClient(AbstractAsyncContextManager):
         msg_type: Optional[str] = None,
         wait: Optional[bool] = True,
         timeout: Optional[int] = 5,
-    ) -> Message:
+    ) -> Mapping[str, Any]:
         if not self.client:
             raise NoOpenClient(
                 "No client has been opened; use `async with echo_client`"
@@ -140,12 +140,12 @@ class EchoClient(AbstractAsyncContextManager):
         if response.is_error:
             raise EchoClientError(f"Failed to wait for message: {response.content}")
 
-        return Message.parse_obj(response.json())
+        return response.json()
 
     async def send_message(
         self,
         connection: Union[str, ConnectionInfo],
-        message: Union[Dict[str, Any], Message],
+        message: Mapping[str, Any],
     ):
         if not self.client:
             raise NoOpenClient(
