@@ -50,7 +50,9 @@ class EchoClient(AbstractAsyncContextManager):
         )
 
         if response.is_error:
-            raise EchoClientError(f"Failed to create new connection: {response.json()}")
+            raise EchoClientError(
+                f"Failed to create new connection: {response.content}"
+            )
 
         return ConnectionInfo.parse_obj(response.json())
 
@@ -105,7 +107,7 @@ class EchoClient(AbstractAsyncContextManager):
         response = await self.client.get(f"/messages/{connection_id}")
 
         if response.is_error:
-            raise EchoClientError(f"Failed to retrieve messages: {response.json()}")
+            raise EchoClientError(f"Failed to retrieve messages: {response.content}")
 
         return parse_obj_as(List[Message], response.json())
 
@@ -130,7 +132,7 @@ class EchoClient(AbstractAsyncContextManager):
         )
 
         if response.is_error:
-            raise EchoClientError(f"Failed to wait for message: {response.json()}")
+            raise EchoClientError(f"Failed to wait for message: {response.content}")
 
         return Message.parse_obj(response.json())
 
