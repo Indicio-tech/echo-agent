@@ -144,7 +144,7 @@ name = "certifi"
 version = "2021.10.8"
 description = "Python package for providing Mozilla's CA Bundle."
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 
 [[package]]
@@ -221,7 +221,7 @@ name = "fastapi"
 version = "0.67.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -273,7 +273,7 @@ name = "httpcore"
 version = "0.11.1"
 description = "A minimal low-level HTTP client."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -288,7 +288,7 @@ name = "httpx"
 version = "0.15.5"
 description = "The next generation HTTP client."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -591,7 +591,7 @@ name = "rfc3986"
 version = "1.5.0"
 description = "Validating URI References per RFC 3986"
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 
 [package.dependencies]
@@ -621,7 +621,7 @@ name = "sniffio"
 version = "1.2.0"
 description = "Sniff out which async library your code is running under"
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.5"
 
 [[package]]
@@ -637,7 +637,7 @@ name = "starlette"
 version = "0.14.2"
 description = "The little ASGI library that shines."
 category = "main"
-optional = false
+optional = true
 python-versions = ">=3.6"
 
 [package.extras]
@@ -737,10 +737,14 @@ python-versions = ">=3.6"
 docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
+[extras]
+client = ["httpx"]
+server = ["fastapi"]
+
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "a0bdfd5c4647345a2430e66ccc049b8500a004dd02bc91ffe32afba5087ac875"
+content-hash = "b799372480b8116550d70bfdeba24ff899ed09f7c38e50423caad562adea6573"
 
 [metadata.files]
 aiohttp = [

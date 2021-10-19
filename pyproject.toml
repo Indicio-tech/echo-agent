@@ -8,9 +8,9 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.7"
 aries-staticagent = {git = "https://github.com/dbluhm/aries-staticagent-python", rev="880c1b6a6b2f8deca36437ed2e733b4728225142"}
-fastapi = "^0.67.0"
+fastapi = {version = "^0.67.0", optional = true}
 pydantic = "^1.8.2"
-httpx = "^0.15.4"
+httpx = {version = "^0.15.4", optional = true}
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
@@ -20,6 +20,10 @@ pytest = "^6.2.5"
 pytest-asyncio = "^0.15.1"
 pytest-cov = "^3.0.0"
 uvicorn = "^0.15.0"
+
+[tool.poetry.extras]
+client = ["httpx"]
+server = ["fastapi"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
