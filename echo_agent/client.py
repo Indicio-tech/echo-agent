@@ -129,7 +129,11 @@ class EchoClient(AbstractAsyncContextManager):
         )
         response = await self.client.get(
             f"/message/{connection_id}",
-            params={"thid": thid, "msg_type": msg_type, "wait": wait},
+            params={
+                k: v
+                for k, v in {"thid": thid, "msg_type": msg_type, "wait": wait}.items()
+                if v is not None
+            },
             timeout=timeout,
         )
 

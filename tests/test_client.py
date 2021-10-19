@@ -1,10 +1,14 @@
-from aries_staticagent.dispatcher.queue_dispatcher import QueueDispatcher
-from echo_agent.models import ConnectionInfo
+import asyncio
 from uuid import uuid4
-import pytest
-from echo_agent.client import EchoClient, NoOpenClient
-from echo_agent.app import messages, connections, recip_key_to_connection_id
+
 from aries_staticagent import Connection, Target, crypto
+from aries_staticagent.dispatcher.queue_dispatcher import QueueDispatcher
+from aries_staticagent.message import Message
+import pytest
+
+from echo_agent.app import connections, messages, recip_key_to_connection_id
+from echo_agent.client import EchoClient, NoOpenClient
+from echo_agent.models import ConnectionInfo
 
 
 @pytest.fixture(autouse=True)
@@ -15,9 +19,13 @@ def clear_app_state():
 
 
 @pytest.fixture
-def target():
-    vk, _ = crypto.create_keypair()
-    yield Target(their_vk=vk, endpoint="test")
+def recip():
+    yield Connection.random()
+
+
+@pytest.fixture
+def target(recip: Connection):
+    yield Target(their_vk=recip.verkey, endpoint="test")
 
 
 @pytest.fixture
@@ -79,3 +87,74 @@ async def test_delete_connection(echo_client: EchoClient, connection_id: str):
     async with echo_client:
         await echo_client.delete_connection(connection_id)
         assert connection_id not in connections
+
+
+@pytest.mark.asyncio
+async def test_receive_message(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+    async with echo_client:
+        await echo_client.new_message(recip.pack(msg))
+    assert messages[connection_id]._queue
+
+
+@pytest.mark.asyncio
+async def test_get_messages(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+    async with echo_client:
+        await echo_client.new_message(recip.pack(msg))
+        messages = await echo_client.get_messages(connection_id)
+    assert messages
+
+
+@pytest.mark.asyncio
+async def test_get_message_post(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+    async with echo_client:
+        await echo_client.new_message(recip.pack(msg))
+        message = await echo_client.get_message(connection_id)
+    assert message
+
+
+@pytest.mark.asyncio
+async def test_get_message_pre(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+
+    async def _produce(echo_client):
+        await asyncio.sleep(0.5)
+        await echo_client.new_message(recip.pack(msg))
+
+    async def _consume(echo_client):
+        return await echo_client.get_message(connection_id)
+
+    async with echo_client:
+        _, message = await asyncio.gather(_produce(echo_client), _consume(echo_client))
+    assert message
+
+
+@pytest.mark.asyncio
+async def test_get_message_no_wait(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+    async with echo_client:
+        await echo_client.new_message(recip.pack(msg))
+        message = await echo_client.get_message(connection_id, wait=False)
+    assert message

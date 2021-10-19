@@ -153,11 +153,22 @@ async def get_message(
 ):
     """Wait for a message matching criteria."""
 
-    def _matcher(message: Message):
-        """Matcher for messages."""
-        thid_match = True if thid is None else message.thread["thid"] == thid
-        msg_type_match = True if msg_type is None else message.type == msg_type
-        return thid_match and msg_type_match
+    def _thid_match(msg: Message):
+        return msg.thread["thid"] == thid
+
+    def _msg_type_match(msg: Message):
+        return msg.type == msg_type
+
+    def _thid_and_msg_type_match(msg: Message):
+        return _thid_match(msg) and _msg_type_match(msg)
+
+    condition = None
+    if thid is not None:
+        condition = _thid_match
+    if msg_type is not None:
+        condition = _msg_type_match
+    if thid is not None and msg_type is not None:
+        condition = _thid_and_msg_type_match
 
     if connection_id not in messages:
         raise HTTPException(
@@ -166,9 +177,9 @@ async def get_message(
 
     queue = messages[connection_id]
     if wait:
-        message = await queue.get(condition=_matcher)
+        message = await queue.get(condition=condition)
     else:
-        message = queue.get_nowait(condition=_matcher)
+        message = queue.get_nowait(condition=condition)
 
     if not message:
         raise HTTPException(
