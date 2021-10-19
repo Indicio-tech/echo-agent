@@ -119,7 +119,7 @@ async def new_message(request: Request):
             conn = connections[connection_id]
             unpacked = conn.unpack(message)
             LOGGER.debug("Unpacked message: %s", unpacked)
-            await conn.dispatch(message)
+            await conn.dispatch(unpacked)
             handled = True
     if not handled:
         LOGGER.warning("Received message that could not be handled: %s", message)
