@@ -25,7 +25,6 @@ from aries_staticagent import (
     crypto,
 )
 from fastapi import Body, FastAPI, HTTPException, Request
-from pydantic import BaseModel
 from .models import NewConnection, ConnectionInfo
 
 # Logging
@@ -104,8 +103,9 @@ async def get_connections() -> List[ConnectionInfo]:
     ]
 
 
-@app.post("/receive")
-async def receive_message(request: Request):
+@app.post("/")
+@app.post("/message")
+async def new_message(request: Request):
     """Receive a new agent message and push onto the message queue."""
     message = await request.body()
     LOGGER.debug("Message received: %s", message)
@@ -126,11 +126,11 @@ async def receive_message(request: Request):
 
 
 @app.get(
-    "/retrieve/{connection_id}",
+    "/messages/{connection_id}",
     response_model=List[Message],
     operation_id="retrieve_messages",
 )
-async def retreive_messages(connection_id: str):
+async def get_messages(connection_id: str):
     """Retrieve all received messages for recipient key."""
     if connection_id not in messages:
         raise HTTPException(
@@ -143,10 +143,13 @@ async def retreive_messages(connection_id: str):
 
 
 @app.get(
-    "/wait-for/{connection_id}", response_model=Message, operation_id="wait_for_message"
+    "/message/{connection_id}", response_model=Message, operation_id="wait_for_message"
 )
-async def wait_for_message(
-    connection_id: str, thid: Optional[str] = None, msg_type: Optional[str] = None
+async def get_message(
+    connection_id: str,
+    thid: Optional[str] = None,
+    msg_type: Optional[str] = None,
+    wait: Optional[bool] = True,
 ):
     """Wait for a message matching criteria."""
 
@@ -162,12 +165,22 @@ async def wait_for_message(
         )
 
     queue = messages[connection_id]
-    message = await queue.get(condition=_matcher)
+    if wait:
+        message = await queue.get(condition=_matcher)
+    else:
+        message = queue.get_nowait(condition=_matcher)
+
+    if not message:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No message found for connection id {connection_id}",
+        )
+
     LOGGER.debug("Received message, returning to waiting client: %s", message)
     return message
 
 
-@app.post("/send/{connection_id}", operation_id="send_message")
+@app.post("/message/{connection_id}", operation_id="send_message")
 async def send_message(connection_id: str, message: dict = Body(...)):
     """Send a message to connection identified by did."""
     LOGGER.debug("Sending message to %s: %s", connection_id, message)
@@ -177,22 +190,6 @@ async def send_message(connection_id: str, message: dict = Body(...)):
         )
     conn = connections[connection_id]
     await conn.send_async(message)
-
-
-class DebugInfo(BaseModel):
-    connections: Dict[str, str]
-    recip_key_to_connection_id: Dict[str, str]
-    messages: Dict[str, str]
-
-
-@app.get("/debug", response_model=DebugInfo)
-async def debug_info():
-    """Return agent state for debugging."""
-    return DebugInfo(
-        connections={k: str(v) for k, v in connections.items()},
-        recip_key_to_connection_id=recip_key_to_connection_id,
-        messages={k: repr(v) for k, v in messages.items()},
-    )
 
 
 __all__ = ["app"]

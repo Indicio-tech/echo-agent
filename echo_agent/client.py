@@ -50,7 +50,7 @@ class EchoClient(AbstractAsyncContextManager):
         )
 
         if response.is_error:
-            raise EchoClientError("Failed to create new connection")
+            raise EchoClientError(f"Failed to create new connection: {response.json()}")
 
         return ConnectionInfo.parse_obj(response.json())
 
@@ -80,18 +80,18 @@ class EchoClient(AbstractAsyncContextManager):
             raise EchoClientError("Failed to retrieve connections")
         return response.json()
 
-    async def receive_message(self, packed_message: bytes):
+    async def new_message(self, packed_message: bytes):
         if not self.client:
             raise NoOpenClient(
                 "No client has been opened; use `async with echo_client`"
             )
 
-        response = await self.client.post("/receive", content=packed_message)
+        response = await self.client.post("/", content=packed_message)
 
         if response.is_error:
             raise EchoClientError("Failed to receive message")
 
-    async def retrieve_messages(
+    async def get_messages(
         self, connection: Union[str, ConnectionInfo]
     ) -> List[Message]:
         if not self.client:
@@ -102,18 +102,19 @@ class EchoClient(AbstractAsyncContextManager):
         connection_id = (
             connection if isinstance(connection, str) else connection.connection_id
         )
-        response = await self.client.get(f"/retrieve/{connection_id}")
+        response = await self.client.get(f"/messages/{connection_id}")
 
         if response.is_error:
-            raise EchoClientError("Failed to retrieve messages")
+            raise EchoClientError(f"Failed to retrieve messages: {response.json()}")
 
         return parse_obj_as(List[Message], response.json())
 
-    async def wait_for_message(
+    async def get_message(
         self,
         connection: Union[str, ConnectionInfo],
         thid: Optional[str] = None,
         msg_type: Optional[str] = None,
+        wait: Optional[bool] = True,
     ) -> Message:
         if not self.client:
             raise NoOpenClient(
@@ -124,11 +125,12 @@ class EchoClient(AbstractAsyncContextManager):
             connection if isinstance(connection, str) else connection.connection_id
         )
         response = await self.client.get(
-            f"/wait-for/{connection_id}", params={"thid": thid, "msg_type": msg_type}
+            f"/message/{connection_id}",
+            params={"thid": thid, "msg_type": msg_type, "wait": wait},
         )
 
         if response.is_error:
-            raise EchoClientError("Failed to wait for message")
+            raise EchoClientError(f"Failed to wait for message: {response.json()}")
 
         return Message.parse_obj(response.json())
 
@@ -145,7 +147,7 @@ class EchoClient(AbstractAsyncContextManager):
         connection_id = (
             connection if isinstance(connection, str) else connection.connection_id
         )
-        response = await self.client.post(f"/send/{connection_id}", json=message)
+        response = await self.client.post(f"/message/{connection_id}", json=message)
 
         if response.is_error:
             raise EchoClientError("Failed to send message")
