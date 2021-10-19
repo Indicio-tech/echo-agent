@@ -117,6 +117,7 @@ class EchoClient(AbstractAsyncContextManager):
         thid: Optional[str] = None,
         msg_type: Optional[str] = None,
         wait: Optional[bool] = True,
+        timeout: Optional[int] = 5,
     ) -> Message:
         if not self.client:
             raise NoOpenClient(
@@ -129,6 +130,7 @@ class EchoClient(AbstractAsyncContextManager):
         response = await self.client.get(
             f"/message/{connection_id}",
             params={"thid": thid, "msg_type": msg_type, "wait": wait},
+            timeout=timeout,
         )
 
         if response.is_error:
