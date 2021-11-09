@@ -7,7 +7,7 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-aries-staticagent = {git = "https://github.com/dbluhm/aries-staticagent-python", rev="880c1b6a6b2f8deca36437ed2e733b4728225142", optional = true}
+aries-staticagent = {git = "https://github.com/dbluhm/aries-staticagent-python", rev="b6016a2f65679d832f867523d873e23621f98273", optional = true}
 fastapi = {version = "^0.67.0", optional = true}
 httpx = {version = "^0.15.4", optional = true}
 
