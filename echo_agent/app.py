@@ -13,7 +13,7 @@ Required operations include:
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from aries_staticagent import (
@@ -32,11 +32,16 @@ LOGGER = logging.getLogger("uvicorn.error." + __name__)
 
 # Global state
 connections: Dict[str, Connection] = {}
+sessions: Dict[str, Any] = {}
 recip_key_to_connection_id: Dict[str, str] = {}
 messages: Dict[str, MsgQueue] = {}
 
 
 app = FastAPI(title="Echo Agent", version="0.1.0")
+
+
+class SessionMessage(Message):
+    pass
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
@@ -130,16 +135,20 @@ async def new_message(request: Request):
     response_model=List[Message],
     operation_id="retrieve_messages",
 )
-async def get_messages(connection_id: str):
+async def get_messages(connection_id: str, session_id: Optional[str] = None):
     """Retrieve all received messages for recipient key."""
     if connection_id not in messages:
         raise HTTPException(
             status_code=404, detail=f"No connection id matching {connection_id}"
         )
 
-    LOGGER.debug("Retrieving messages for connection_id %s", connection_id)
-    queue = messages[connection_id]
-    return await queue.flush()
+    if not session_id:
+        LOGGER.debug("Retrieving messages for connection_id %s", connection_id)
+        queue = messages[connection_id]
+        return await queue.flush()
+
+    # TODO loop with get_nowait until returns a None with condition matching session ID
+    return []
 
 
 @app.get(
@@ -150,6 +159,7 @@ async def get_message(
     thid: Optional[str] = None,
     msg_type: Optional[str] = None,
     wait: Optional[bool] = True,
+    session_id: Optional[str] = None,
 ):
     """Wait for a message matching criteria."""
 
@@ -161,6 +171,12 @@ async def get_message(
 
     def _thid_and_msg_type_match(msg: Message):
         return _thid_match(msg) and _msg_type_match(msg)
+
+    def _session_id_match(msg: Message):
+        return isinstance(msg, SessionMessage) and msg.session_id == session_id
+
+    # TODO combinations of the above conditions without having to define
+    # separate functions?
 
     condition = None
     if thid is not None:
@@ -201,6 +217,21 @@ async def send_message(connection_id: str, message: dict = Body(...)):
         )
     conn = connections[connection_id]
     await conn.send_async(message)
+
+
+@app.get("/session/{connection_id}")
+async def open_session(connection_id: str, endpoint: Optional[str] = None):
+    pass
+
+
+@app.delete("/session/{session_id}")
+async def close_session(session_id: str):
+    pass
+
+
+@app.post("/message/session/{session_id}")
+async def send_message_to_session(session_id: str):
+    pass
 
 
 __all__ = ["app"]
