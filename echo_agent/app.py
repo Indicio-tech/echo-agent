@@ -12,8 +12,9 @@ Required operations include:
 - send message
 """
 
+import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from aries_staticagent import (
@@ -25,23 +26,21 @@ from aries_staticagent import (
     crypto,
 )
 from fastapi import Body, FastAPI, HTTPException, Request
-from .models import NewConnection, ConnectionInfo
+
+from .session import Session, SessionMessage
+from .models import NewConnection, ConnectionInfo, SessionInfo
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
 
 # Global state
 connections: Dict[str, Connection] = {}
-sessions: Dict[str, Any] = {}
+sessions: Dict[str, Session] = {}
 recip_key_to_connection_id: Dict[str, str] = {}
 messages: Dict[str, MsgQueue] = {}
 
 
 app = FastAPI(title="Echo Agent", version="0.1.0")
-
-
-class SessionMessage(Message):
-    pass
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
@@ -142,13 +141,14 @@ async def get_messages(connection_id: str, session_id: Optional[str] = None):
             status_code=404, detail=f"No connection id matching {connection_id}"
         )
 
+    queue = messages[connection_id]
     if not session_id:
         LOGGER.debug("Retrieving messages for connection_id %s", connection_id)
-        queue = messages[connection_id]
-        return await queue.flush()
+        return queue.get_all()
 
-    # TODO loop with get_nowait until returns a None with condition matching session ID
-    return []
+    return queue.get_all(
+        lambda msg: isinstance(msg, SessionMessage) and msg.session_id == session_id
+    )
 
 
 @app.get(
@@ -160,31 +160,20 @@ async def get_message(
     msg_type: Optional[str] = None,
     wait: Optional[bool] = True,
     session_id: Optional[str] = None,
+    timeout: int = 5,
 ):
     """Wait for a message matching criteria."""
 
-    def _thid_match(msg: Message):
-        return msg.thread["thid"] == thid
-
-    def _msg_type_match(msg: Message):
-        return msg.type == msg_type
-
-    def _thid_and_msg_type_match(msg: Message):
-        return _thid_match(msg) and _msg_type_match(msg)
-
-    def _session_id_match(msg: Message):
-        return isinstance(msg, SessionMessage) and msg.session_id == session_id
-
-    # TODO combinations of the above conditions without having to define
-    # separate functions?
-
-    condition = None
-    if thid is not None:
-        condition = _thid_match
-    if msg_type is not None:
-        condition = _msg_type_match
-    if thid is not None and msg_type is not None:
-        condition = _thid_and_msg_type_match
+    def _condition(msg: Message):
+        return all(
+            [
+                msg.thread["thid"] == thid if thid else True,
+                msg.type == msg_type if msg_type else True,
+                msg.session_id == session_id
+                if isinstance(msg, SessionMessage) and session_id
+                else True,
+            ]
+        )
 
     if connection_id not in messages:
         raise HTTPException(
@@ -193,9 +182,18 @@ async def get_message(
 
     queue = messages[connection_id]
     if wait:
-        message = await queue.get(condition=condition)
+        try:
+            message = await queue.get(condition=_condition, timeout=timeout)
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=408,
+                detail=(
+                    f"No message found for connection id {connection_id} "
+                    "before timeout"
+                ),
+            )
     else:
-        message = queue.get_nowait(condition=condition)
+        message = queue.get_nowait(condition=_condition)
 
     if not message:
         raise HTTPException(
@@ -209,7 +207,7 @@ async def get_message(
 
 @app.post("/message/{connection_id}", operation_id="send_message")
 async def send_message(connection_id: str, message: dict = Body(...)):
-    """Send a message to connection identified by did."""
+    """Send a message to connection identified by connection ID."""
     LOGGER.debug("Sending message to %s: %s", connection_id, message)
     if connection_id not in connections:
         raise HTTPException(
@@ -219,19 +217,45 @@ async def send_message(connection_id: str, message: dict = Body(...)):
     await conn.send_async(message)
 
 
-@app.get("/session/{connection_id}")
+@app.get(
+    "/session/{connection_id}", operation_id="open_session", response_model=SessionInfo
+)
 async def open_session(connection_id: str, endpoint: Optional[str] = None):
-    pass
+    """Open a session."""
+    if connection_id not in connections:
+        raise HTTPException(
+            status_code=404, detail=f"No connection matching {connection_id} found"
+        )
+    conn = connections[connection_id]
+
+    session = Session(conn, endpoint)
+    sessions[session.id] = session
+    session.open()
+    return SessionInfo(session.id, connection_id)
 
 
 @app.delete("/session/{session_id}")
 async def close_session(session_id: str):
-    pass
+    """Close an open session."""
+    if session_id not in sessions:
+        raise HTTPException(
+            status_code=404, detail=f"No session matching {session_id} found"
+        )
+    session = sessions[session_id]
+    await session.close()
+    sessions.pop(session_id)
+    return session_id
 
 
 @app.post("/message/session/{session_id}")
-async def send_message_to_session(session_id: str):
-    pass
+async def send_message_to_session(session_id: str, message: dict = Body(...)):
+    """Send a message to a session identified by session ID."""
+    if session_id not in sessions:
+        raise HTTPException(
+            status_code=404, detail=f"No session matching {session_id} found"
+        )
+    session = sessions[session_id]
+    await session.send(message)
 
 
 __all__ = ["app"]

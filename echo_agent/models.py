@@ -15,3 +15,9 @@ class ConnectionInfo:
     verkey: str
     their_vk: str
     endpoint: str
+
+
+@dataclass
+class SessionInfo:
+    session_id: str
+    connection_id: str

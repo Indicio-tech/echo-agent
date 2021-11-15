@@ -1,11 +1,11 @@
 """Client to Echo Agent."""
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import asdict
 from typing import Any, List, Mapping, Optional, Union
 
 from httpx import AsyncClient
 
-from .models import ConnectionInfo, NewConnection
+from .models import ConnectionInfo, NewConnection, SessionInfo
 
 
 class EchoClientError(Exception):
@@ -37,7 +37,7 @@ class EchoClient(AbstractAsyncContextManager):
             await self.client.__aexit__(exc_type, exc_value, traceback)
 
     async def new_connection(
-        self, seed: Union[str, bytes], endpoint: str, their_vk: str
+        self, seed: str, endpoint: str, their_vk: str
     ) -> ConnectionInfo:
         if not self.client:
             raise NoOpenClient(
@@ -94,7 +94,9 @@ class EchoClient(AbstractAsyncContextManager):
             raise EchoClientError("Failed to receive message")
 
     async def get_messages(
-        self, connection: Union[str, ConnectionInfo]
+        self,
+        connection: Union[str, ConnectionInfo],
+        session: Union[str, SessionInfo, None] = None,
     ) -> List[Mapping[str, Any]]:
         if not self.client:
             raise NoOpenClient(
@@ -104,7 +106,17 @@ class EchoClient(AbstractAsyncContextManager):
         connection_id = (
             connection if isinstance(connection, str) else connection.connection_id
         )
-        response = await self.client.get(f"/messages/{connection_id}")
+        session_id = (
+            session
+            if isinstance(session, str)
+            else session.session_id
+            if isinstance(session, SessionInfo)
+            else None
+        )
+        response = await self.client.get(
+            f"/messages/{connection_id}",
+            params={"session_id": session_id} if session_id else {},
+        )
 
         if response.is_error:
             raise EchoClientError(f"Failed to retrieve messages: {response.content}")
@@ -114,8 +126,10 @@ class EchoClient(AbstractAsyncContextManager):
     async def get_message(
         self,
         connection: Union[str, ConnectionInfo],
+        *,
         thid: Optional[str] = None,
         msg_type: Optional[str] = None,
+        session: Optional[Union[str, SessionInfo]] = None,
         wait: Optional[bool] = True,
         timeout: Optional[int] = 5,
     ) -> Mapping[str, Any]:
@@ -127,14 +141,26 @@ class EchoClient(AbstractAsyncContextManager):
         connection_id = (
             connection if isinstance(connection, str) else connection.connection_id
         )
+        session_id = (
+            session
+            if isinstance(session, str)
+            else session.session_id
+            if isinstance(session, SessionInfo)
+            else None
+        )
         response = await self.client.get(
             f"/message/{connection_id}",
             params={
                 k: v
-                for k, v in {"thid": thid, "msg_type": msg_type, "wait": wait}.items()
+                for k, v in {
+                    "thid": thid,
+                    "msg_type": msg_type,
+                    "session_id": session_id,
+                    "wait": wait,
+                    "timeout": timeout,
+                }.items()
                 if v is not None
             },
-            timeout=timeout,
         )
 
         if response.is_error:
@@ -158,4 +184,46 @@ class EchoClient(AbstractAsyncContextManager):
         response = await self.client.post(f"/message/{connection_id}", json=message)
 
         if response.is_error:
-            raise EchoClientError("Failed to send message")
+            raise EchoClientError(f"Failed to send message: {response.content}")
+
+    @asynccontextmanager
+    async def session(self, connection: Union[str, ConnectionInfo]):
+        """Open a session."""
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        connection_id = (
+            connection if isinstance(connection, str) else connection.connection_id
+        )
+        session_info: Optional[SessionInfo] = None
+        try:
+            response = await self.client.get(f"/session/{connection_id}")
+            if response.is_error:
+                raise EchoClientError(f"Failed to open session: {response.content}")
+            session_info = response.json()
+            if not session_info:
+                raise EchoClientError(
+                    f"Could not determine session from: {response.content}"
+                )
+            yield session_info
+        finally:
+            if session_info:
+                await self.client.delete(f"/session/{session_info.session_id}")
+
+    async def send_message_to_session(
+        self, session: Union[str, SessionInfo], message: Mapping[str, Any]
+    ):
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        session_id = session if isinstance(session, str) else session.session_id
+        response = await self.client.post(
+            f"/message/session/{session_id}", json=message
+        )
+
+        if response.is_error:
+            raise EchoClientError(f"Failed to send message: {response.content}")

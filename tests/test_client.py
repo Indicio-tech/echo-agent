@@ -9,6 +9,7 @@ import pytest
 from echo_agent.app import connections, messages, recip_key_to_connection_id
 from echo_agent.client import EchoClient, NoOpenClient
 from echo_agent.models import ConnectionInfo
+from echo_agent.session import SessionMessage
 
 
 @pytest.fixture(autouse=True)
@@ -115,6 +116,23 @@ async def test_get_messages(
 
 
 @pytest.mark.asyncio
+async def test_get_messages_session(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = SessionMessage.from_message(
+        "test_session_id", Message.parse_obj({"@type": "doc/protocol/1.0/message"})
+    )
+    await messages[connection_id].put(msg)
+    async with echo_client:
+        retrieved_messages = await echo_client.get_messages(
+            connection_id, "test_session_id"
+        )
+    assert retrieved_messages
+
+
+@pytest.mark.asyncio
 async def test_get_message_post(
     echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
 ):
@@ -124,6 +142,29 @@ async def test_get_message_post(
     async with echo_client:
         await echo_client.new_message(recip.pack(msg))
         message = await echo_client.get_message(connection_id)
+    assert message
+
+
+@pytest.mark.asyncio
+async def test_get_message_post_condition(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a message."""
+    recip.target = Target(their_vk=conn.verkey, endpoint="test")
+    msg = SessionMessage.from_message(
+        "test_session_id",
+        Message.parse_obj(
+            {"@type": "doc/protocol/1.0/message", "~thread": {"thid": "test_id"}}
+        ),
+    )
+    await messages[connection_id].put(msg)
+    async with echo_client:
+        message = await echo_client.get_message(
+            connection_id,
+            msg_type="doc/protocol/1.0/message",
+            thid="test_id",
+            session_id="test_session_id",
+        )
     assert message
 
 
