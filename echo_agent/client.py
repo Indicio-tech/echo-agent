@@ -202,11 +202,7 @@ class EchoClient(AbstractAsyncContextManager):
             response = await self.client.get(f"/session/{connection_id}")
             if response.is_error:
                 raise EchoClientError(f"Failed to open session: {response.content}")
-            session_info = response.json()
-            if not session_info:
-                raise EchoClientError(
-                    f"Could not determine session from: {response.content}"
-                )
+            session_info = SessionInfo(**response.json())
             yield session_info
         finally:
             if session_info:
