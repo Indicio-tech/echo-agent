@@ -187,7 +187,9 @@ class EchoClient(AbstractAsyncContextManager):
             raise EchoClientError(f"Failed to send message: {response.content}")
 
     @asynccontextmanager
-    async def session(self, connection: Union[str, ConnectionInfo]):
+    async def session(
+        self, connection: Union[str, ConnectionInfo], endpoint: Optional[str] = None
+    ):
         """Open a session."""
         if not self.client:
             raise NoOpenClient(
@@ -199,7 +201,10 @@ class EchoClient(AbstractAsyncContextManager):
         )
         session_info: Optional[SessionInfo] = None
         try:
-            response = await self.client.get(f"/session/{connection_id}")
+            response = await self.client.get(
+                f"/session/{connection_id}",
+                params={"endpoint": endpoint} if endpoint else {},
+            )
             if response.is_error:
                 raise EchoClientError(f"Failed to open session: {response.content}")
             session_info = SessionInfo(**response.json())
