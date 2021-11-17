@@ -91,7 +91,11 @@ class Session:
     async def send(self, msg: Union[dict, Message]):
         if not self.socket:
             if self._task:
-                await self._opened.wait()
+                LOGGER.info("Socket not yet open but expected, waiting...")
+                try:
+                    await asyncio.wait_for(self._opened.wait(), 3)
+                except asyncio.TimeoutError:
+                    pass
             else:
                 raise SocketClosed("No open socket to send message")
         if not self.socket:
