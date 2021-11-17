@@ -43,6 +43,7 @@ class Session:
 
         self._task: Optional[asyncio.Future] = None
         self.socket: Optional[aiohttp.ClientWebSocketResponse] = None
+        self._opened: asyncio.Event = asyncio.Event()
 
     async def _open(self):
         LOGGER.debug("Starting session to %s", self.endpoint)
@@ -51,6 +52,7 @@ class Session:
                 async with session.ws_connect(self.endpoint) as socket:
                     LOGGER.debug("Socket connected to %s", self.endpoint)
                     self.socket = socket
+                    self._opened.set()
                     async for msg in socket:
                         LOGGER.debug("Received ws message: %s", msg)
                         if msg.type == aiohttp.WSMsgType.BINARY:
@@ -84,9 +86,16 @@ class Session:
             with suppress(asyncio.CancelledError):
                 await self._task
             self._task = None
+        self._opened.clear()
 
     async def send(self, msg: Union[dict, Message]):
         if not self.socket:
-            raise SocketClosed("No open socket to send message")
+            if self._task:
+                await self._opened.wait()
+            else:
+                raise SocketClosed("No open socket to send message")
+        if not self.socket:
+            raise SocketClosed("No open socket even after waiting for open")
+
         packed = self.connection.pack(msg)
         await self.socket.send_bytes(packed)
