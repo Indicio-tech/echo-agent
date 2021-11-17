@@ -163,7 +163,7 @@ async def test_get_message_post_condition(
             connection_id,
             msg_type="doc/protocol/1.0/message",
             thid="test_id",
-            session_id="test_session_id",
+            session="test_session_id",
         )
     assert message
 
