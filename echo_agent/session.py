@@ -49,6 +49,7 @@ class Session:
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.ws_connect(self.endpoint) as socket:
+                    LOGGER.debug("Socket connected to %s", self.endpoint)
                     self.socket = socket
                     async for msg in socket:
                         LOGGER.debug("Received ws message: %s", msg)

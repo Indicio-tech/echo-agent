@@ -27,5 +27,5 @@ COPY --from=base /usr/src/app /usr/src/app
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
 COPY ./echo_agent/ ./echo_agent/
-ENTRYPOINT ["/bin/sh", "-c", "python -m \"$@\"", "--"]
-CMD ["uvicorn", "echo_agent:app", "--host", "0.0.0.0", "--port", "80"]
+ENTRYPOINT ["/bin/sh", "-c", "python -m uvicorn echo_agent:app \"$@\"", "--"]
+CMD ["--host", "0.0.0.0", "--port", "80"]

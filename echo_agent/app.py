@@ -26,9 +26,14 @@ from aries_staticagent import (
     crypto,
 )
 from fastapi import Body, FastAPI, HTTPException, Request
+from pydantic import dataclasses
 
 from .session import Session, SessionMessage
-from .models import NewConnection, ConnectionInfo, SessionInfo
+from .models import (
+    NewConnection,
+    ConnectionInfo as ConnectionInfoDataclass,
+    SessionInfo,
+)
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
@@ -41,6 +46,9 @@ messages: Dict[str, MsgQueue] = {}
 
 
 app = FastAPI(title="Echo Agent", version="0.1.0")
+
+
+ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
