@@ -270,7 +270,7 @@ async def send_message_to_session(session_id: str, message: dict = Body(...)):
     await session.send(message)
 
 
-@app.post("/webhook/topic/{topic}", response_model=Webhook)
+@app.post("/webhook/{topic:path}", response_model=Webhook)
 async def receive_webhook(topic: str, payload: dict = Body(...)):
     """Receive a webhook."""
     LOGGER.debug("Received webhook: topic %s, payload %s", topic, payload)

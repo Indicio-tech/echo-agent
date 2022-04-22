@@ -235,7 +235,7 @@ class EchoClient(AbstractAsyncContextManager):
                 "No client has been opened; use `async with echo_client`"
             )
 
-        response = await self.client.post(f"/webhook/topic/{topic}", json=payload)
+        response = await self.client.post(f"/webhook/{topic}", json=payload)
 
         if response.is_error:
             raise EchoClientError("Failed to receive webhook")
