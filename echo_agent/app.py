@@ -14,7 +14,7 @@ Required operations include:
 
 import asyncio
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 from aries_staticagent import (
@@ -26,12 +26,13 @@ from aries_staticagent import (
     crypto,
 )
 from fastapi import Body, FastAPI, HTTPException, Request
-from pydantic import dataclasses
 
 from .session import Session, SessionMessage
 from .models import (
+    ConnectionInvitation,
     NewConnection,
-    ConnectionInfo as ConnectionInfoDataclass,
+    ConnectionInfo,
+    OutOfBandInvitation,
     SessionInfo,
 )
 
@@ -48,9 +49,6 @@ messages: Dict[str, MsgQueue] = {}
 app = FastAPI(title="Echo Agent", version="0.1.0")
 
 
-ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
-
-
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
 async def new_connection(new_connection: NewConnection):
     """Create a new static connection."""
@@ -63,6 +61,62 @@ async def new_connection(new_connection: NewConnection):
         ),
         dispatcher=dispatcher,
     )
+
+    # Store state
+    connection_id = str(uuid4())
+    connections[connection_id] = conn
+    messages[connection_id] = dispatcher.queue
+    recip_key_to_connection_id[conn.verkey_b58] = connection_id
+
+    # Response
+    result = ConnectionInfo(
+        connection_id=connection_id,
+        did=conn.did,
+        verkey=conn.verkey_b58,
+        their_vk=new_connection.their_vk,
+        endpoint=new_connection.endpoint,
+    )
+    LOGGER.debug("Returning new connection: %s", result)
+    return result
+
+
+@app.post(
+    "/receive-invitation",
+    response_model=ConnectionInfo,
+    operation_id="receive_invitation",
+)
+async def receive_invitation(
+    invitation: Union[ConnectionInvitation, OutOfBandInvitation]
+):
+    """Accept an invitation and form a connection."""
+    LOGGER.debug("Creating new connection from invitation: %s", invitation.json())
+
+    # Assume out of band for simplicity
+    assert isinstance(invitation, OutOfBandInvitation)
+
+    # Assume services is not empty
+    assert invitation.services
+    service = invitation.services[0]
+
+    dispatcher = QueueDispatcher()
+    conn = Connection.from_seed(
+        seed=new_connection.seed.encode("ascii"),
+        target=Target(
+            endpoint=service.service_endpoint,
+            recipients=service.recipient_keys,
+            routing_keys=service.routing_keys,
+        ),
+        dispatcher=dispatcher,
+    )
+
+    request = {
+        "@type": "https://didcomm.org/didexchange/1.0/request",
+        "~thread": {"pthid": invitation.id},
+        "label": "echo",
+        "did": conn.did,
+        "did_doc~attach": {},
+    }
+    print(request)
 
     # Store state
     connection_id = str(uuid4())
