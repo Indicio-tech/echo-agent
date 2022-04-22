@@ -28,11 +28,14 @@ from aries_staticagent import (
 from fastapi import Body, FastAPI, HTTPException, Request
 from pydantic import dataclasses
 
+from .webhook_queue import Queue
+
 from .session import Session, SessionMessage
 from .models import (
     NewConnection,
     ConnectionInfo as ConnectionInfoDataclass,
     SessionInfo,
+    Webhook,
 )
 
 # Logging
@@ -43,6 +46,7 @@ connections: Dict[str, Connection] = {}
 sessions: Dict[str, Session] = {}
 recip_key_to_connection_id: Dict[str, str] = {}
 messages: Dict[str, MsgQueue] = {}
+webhooks: Queue[Webhook] = Queue()
 
 
 app = FastAPI(title="Echo Agent", version="0.1.0")
@@ -264,6 +268,59 @@ async def send_message_to_session(session_id: str, message: dict = Body(...)):
         )
     session = sessions[session_id]
     await session.send(message)
+
+
+@app.post("/webhook/topic/{topic}", response_model=Webhook)
+async def receive_webhook(topic: str, payload: dict = Body(...)):
+    """Receive a webhook."""
+    LOGGER.debug("Received webhook: topic %s, payload %s", topic, payload)
+    await webhooks.put(Webhook(topic, payload))
+
+
+@app.get(
+    "/webhooks",
+    response_model=List[Webhook],
+    operation_id="",
+)
+async def get_webhooks(topic: Optional[str] = None):
+    """Retrieve all received messages for recipient key."""
+    if not topic:
+        LOGGER.debug("Retrieving webhooks")
+        return webhooks.get_all()
+
+    return webhooks.get_all(lambda entry: entry.topic == topic)
+
+
+@app.get("/webhook", response_model=Webhook, operation_id="wait_for_webhook")
+async def get_webhook(
+    topic: Optional[str] = None,
+    wait: Optional[bool] = True,
+    timeout: int = 5,
+):
+    """Wait for a message matching criteria."""
+
+    def _condition(entry: Webhook):
+        return entry.topic == topic if topic else True
+
+    if wait:
+        try:
+            webhook = await webhooks.get(condition=_condition, timeout=timeout)
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=408,
+                detail=("No webhook found before timeout"),
+            )
+    else:
+        webhook = webhooks.get_nowait(condition=_condition)
+
+    if not webhook:
+        raise HTTPException(
+            status_code=404,
+            detail="No webhook found",
+        )
+
+    LOGGER.debug("Received webhook, returning to waiting client: %s", webhook)
+    return webhook
 
 
 __all__ = ["app"]

@@ -6,7 +6,7 @@ from aries_staticagent.dispatcher.queue_dispatcher import QueueDispatcher
 from aries_staticagent.message import Message
 import pytest
 
-from echo_agent.app import connections, messages, recip_key_to_connection_id
+from echo_agent.app import connections, messages, recip_key_to_connection_id, webhooks
 from echo_agent.client import EchoClient, NoOpenClient
 from echo_agent.models import ConnectionInfo
 from echo_agent.session import SessionMessage
@@ -199,3 +199,86 @@ async def test_get_message_no_wait(
         await echo_client.new_message(recip.pack(msg))
         message = await echo_client.get_message(connection_id, wait=False)
     assert message
+
+
+@pytest.mark.asyncio
+async def test_receive_webhook(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+    assert webhooks._queue
+
+
+@pytest.mark.asyncio
+async def test_get_webhooks(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+        webhooks = await echo_client.get_webhooks()
+    assert webhooks
+
+
+@pytest.mark.asyncio
+async def test_get_webhooks_condition(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+        webhooks = await echo_client.get_webhooks(topic="test")
+    assert webhooks
+
+
+@pytest.mark.asyncio
+async def test_get_webhook_post(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+        webhook = await echo_client.get_webhook()
+    assert webhook
+
+
+@pytest.mark.asyncio
+async def test_get_webhook_post_condition(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+        webhook = await echo_client.get_webhook(topic="test")
+    assert webhook
+
+
+@pytest.mark.asyncio
+async def test_get_webhook_pre(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+
+    async def _produce(echo_client):
+        await asyncio.sleep(0.5)
+        await echo_client.new_webhook("test", {"test": "test"})
+
+    async def _consume(echo_client):
+        return await echo_client.get_webhook(topic="test")
+
+    async with echo_client:
+        _, webhook = await asyncio.gather(_produce(echo_client), _consume(echo_client))
+    assert webhook
+
+
+@pytest.mark.asyncio
+async def test_get_webhook_no_wait(
+    echo_client: EchoClient, recip: Connection, conn: Connection, connection_id: str
+):
+    """Test reception of a webhook."""
+    async with echo_client:
+        await echo_client.new_webhook("test", {"test": "test"})
+        webhook = await echo_client.get_webhook(topic="test", wait=False)
+    assert webhook
