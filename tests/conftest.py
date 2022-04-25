@@ -1,7 +1,9 @@
 import pytest
-from echo_agent import app, EchoClient
+from echo_agent import EchoClient
 
 
 @pytest.fixture
-def echo_client():
+async def echo_client():
+    from echo_agent import app
+
     yield EchoClient(base_url="http://test", app=app)
