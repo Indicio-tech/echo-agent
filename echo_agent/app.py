@@ -52,6 +52,11 @@ webhooks: Queue[Webhook] = Queue()
 app = FastAPI(title="Echo Agent", version="0.1.0")
 
 
+@app.on_event("startup")
+async def setup_webhook_queue():
+    await webhooks.setup()
+
+
 ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
 
 

@@ -12,8 +12,11 @@ class Queue(Generic[QueueEntry]):
         condition: Optional[Callable[[QueueEntry], bool]] = None,
     ):
         self._queue: List[Any] = []
-        self._cond = asyncio.Condition()
+        self._cond: Optional[asyncio.Condition] = None
         self.condition = condition
+
+    async def setup(self):
+        self._cond = asyncio.Condition()
 
     def _first_matching_index(self, condition: Callable[[QueueEntry], bool]):
         for index, entry in enumerate(self._queue):
