@@ -269,7 +269,11 @@ async def test_get_webhook_pre(
         return await echo_client.get_webhook(topic="test")
 
     async with echo_client:
-        _, webhook = await asyncio.gather(_produce(echo_client), _consume(echo_client))
+        loop = asyncio.get_event_loop()
+        _, webhook = await asyncio.gather(
+            loop.create_task(_produce(echo_client)),
+            loop.create_task(_consume(echo_client)),
+        )
     assert webhook
 
 
