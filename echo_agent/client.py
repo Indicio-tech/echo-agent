@@ -1,11 +1,11 @@
 """Client to Echo Agent."""
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import asdict
-from typing import Any, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 from httpx import AsyncClient
 
-from .models import ConnectionInfo, NewConnection, SessionInfo
+from .models import ConnectionInfo, NewConnection, SessionInfo, Webhook
 
 
 class EchoClientError(Exception):
@@ -228,3 +228,64 @@ class EchoClient(AbstractAsyncContextManager):
 
         if response.is_error:
             raise EchoClientError(f"Failed to send message: {response.content}")
+
+    async def new_webhook(self, topic: str, payload: Dict[str, Any]):
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        response = await self.client.post(f"/webhook/{topic}", json=payload)
+
+        if response.is_error:
+            raise EchoClientError("Failed to receive webhook")
+
+    async def get_webhooks(
+        self,
+        *,
+        topic: Optional[str] = None,
+    ) -> List[Webhook]:
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        response = await self.client.get(
+            "/webhooks",
+            params={"topic": topic} if topic else {},
+        )
+
+        if response.is_error:
+            raise EchoClientError(f"Failed to retrieve webhooks: {response.content}")
+
+        return response.json()
+
+    async def get_webhook(
+        self,
+        *,
+        topic: Optional[str] = None,
+        wait: Optional[bool] = True,
+        timeout: Optional[int] = 5,
+    ) -> Mapping[str, Any]:
+        if not self.client:
+            raise NoOpenClient(
+                "No client has been opened; use `async with echo_client`"
+            )
+
+        response = await self.client.get(
+            "/webhook",
+            params={
+                k: v
+                for k, v in {
+                    "topic": topic,
+                    "wait": wait,
+                    "timeout": timeout,
+                }.items()
+                if v is not None
+            },
+        )
+
+        if response.is_error:
+            raise EchoClientError(f"Failed to wait for webhook: {response.content}")
+
+        return response.json()

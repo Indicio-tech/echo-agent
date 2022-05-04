@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Any, Dict
 
 
 @dataclass
@@ -21,3 +22,9 @@ class ConnectionInfo:
 class SessionInfo:
     session_id: str
     connection_id: str
+
+
+@dataclass
+class Webhook:
+    topic: str
+    payload: Dict[str, Any]
