@@ -35,8 +35,12 @@ from .models import (
     NewConnection,
     ConnectionInfo as ConnectionInfoDataclass,
     SessionInfo,
-    Webhook,
+    Webhook as WebhookDataclass,
 )
+
+# Dataclass to Pydantic conversion
+ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
+Webhook = dataclasses.dataclass(WebhookDataclass)
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
@@ -55,9 +59,6 @@ app = FastAPI(title="Echo Agent", version="0.1.0")
 @app.on_event("startup")
 async def setup_webhook_queue():
     await webhooks.setup()
-
-
-ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
@@ -279,7 +280,9 @@ async def send_message_to_session(session_id: str, message: dict = Body(...)):
 async def receive_webhook(topic: str, payload: dict = Body(...)):
     """Receive a webhook."""
     LOGGER.debug("Received webhook: topic %s, payload %s", topic, payload)
-    await webhooks.put(Webhook(topic, payload))
+    webhook = Webhook(topic, payload)
+    await webhooks.put(webhook)
+    return webhook
 
 
 @app.get(
