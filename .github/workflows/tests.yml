@@ -26,7 +26,7 @@ jobs:
       uses: actions/cache@v2
       with:
           path: ~/.local
-          key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_VERSION }}-${{ hashFiles('.github/workflows/code-quality-check.yml') }}
+          key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_VERSION }}-${{ hashFiles('.github/workflows/tests.yml') }}
     - name: Install poetry
       if: steps.cache-poetry.outputs.cache-hit != 'true'
       run: |
@@ -41,7 +41,7 @@ jobs:
       uses: actions/cache@v2
       with:
           path: ${{ steps.setup-poetry-env.outputs.poetry-env }}
-          key: poetry-env-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_VERSION }}-${{ hashFiles('poetry.lock') }}-${{ hashFiles('.github/workflows/code-quality-check.yml') }}
+          key: poetry-env-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_VERSION }}-${{ hashFiles('poetry.lock') }}-${{ hashFiles('.github/workflows/tests.yml') }}
     - name: Install dependencies
       if: steps.cache-poetry-venv.outputs.cache-hit != 'true'
       run: |
@@ -49,16 +49,3 @@ jobs:
     - name: Run unit tests with pytest
       run: |
         poetry run pytest
-
-        #  int:
-        #    name: Integration Tests
-        #    runs-on: ubuntu-latest
-        #    steps:
-        #    - uses: actions/checkout@v2
-        #    - name: Run integration tests
-        #      run: |
-        #        docker-compose -f int/docker-compose.yml run tests
-        #    - name: Clean up integration tests
-        #      if: always()
-        #      run: |
-        #        docker-compose -f int/docker-compose.yml down
