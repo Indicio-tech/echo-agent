@@ -35,8 +35,12 @@ from .models import (
     NewConnection,
     ConnectionInfo as ConnectionInfoDataclass,
     SessionInfo,
-    Webhook,
+    Webhook as WebhookDataclass,
 )
+
+# Dataclass to Pydantic conversion
+ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
+Webhook = dataclasses.dataclass(WebhookDataclass)
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
@@ -55,9 +59,6 @@ app = FastAPI(title="Echo Agent", version="0.1.0")
 @app.on_event("startup")
 async def setup_webhook_queue():
     await webhooks.setup()
-
-
-ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
