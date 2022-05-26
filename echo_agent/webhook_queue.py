@@ -28,6 +28,7 @@ class Queue(Generic[QueueEntry]):
         self, condition: Optional[Callable[[QueueEntry], bool]] = None
     ) -> QueueEntry:
         """Retrieve a message from the queue."""
+        assert self._cond
         while True:
             async with self._cond:
                 # Lock acquired
@@ -47,6 +48,11 @@ class Queue(Generic[QueueEntry]):
                 match_idx = self._first_matching_index(condition)
                 if match_idx is not None:
                     return self._queue.pop(match_idx)
+                else:
+                    # Queue is not empty but no matching elements
+                    # We need to wait for more before checking again
+                    # Otherwise, this becomes a busy loop
+                    await self._cond.wait()
 
     async def get(
         self,
