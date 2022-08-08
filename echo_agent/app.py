@@ -25,22 +25,24 @@ from aries_staticagent import (
     Target,
     crypto,
 )
+from aries_staticagent.utils import ensure_key_b58
 from fastapi import Body, FastAPI, HTTPException, Request
-from pydantic import dataclasses
+
+# from pydantic import dataclasses
 
 from .webhook_queue import Queue
 
 from .session import Session, SessionMessage
 from .models import (
     NewConnection,
-    ConnectionInfo as ConnectionInfoDataclass,
+    ConnectionInfo,  # as ConnectionInfoDataclass,
     SessionInfo,
-    Webhook as WebhookDataclass,
+    Webhook,  # as WebhookDataclass,
 )
 
 # Dataclass to Pydantic conversion
-ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
-Webhook = dataclasses.dataclass(WebhookDataclass)
+# ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
+# Webhook = dataclasses.dataclass(WebhookDataclass)
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
@@ -69,10 +71,16 @@ async def new_connection(new_connection: NewConnection):
     conn = Connection.from_seed(
         seed=new_connection.seed.encode("ascii"),
         target=Target(
-            endpoint=new_connection.endpoint, their_vk=new_connection.their_vk
+            endpoint=new_connection.endpoint,
+            their_vk=new_connection.their_vk,
+            recipients=new_connection.recipient_keys,
+            routing_keys=new_connection.routing_keys,
         ),
         dispatcher=dispatcher,
     )
+
+    # Type narrowing
+    assert conn.target.recipients
 
     # Store state
     connection_id = str(uuid4())
@@ -85,8 +93,12 @@ async def new_connection(new_connection: NewConnection):
         connection_id=connection_id,
         did=conn.did,
         verkey=conn.verkey_b58,
-        their_vk=new_connection.their_vk,
-        endpoint=new_connection.endpoint,
+        their_vk=ensure_key_b58(conn.target.recipients[0]),
+        endpoint=conn.target.endpoint,
+        recipient_keys=[ensure_key_b58(recip) for recip in conn.target.recipients],
+        routing_keys=[
+            ensure_key_b58(route) for route in conn.target.routing_keys or []
+        ],
     )
     LOGGER.debug("Returning new connection: %s", result)
     return result
