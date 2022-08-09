@@ -1,27 +1,21 @@
-FROM python:3.7-alpine AS base
+FROM python:3.10-slim-buster AS base
 WORKDIR /usr/src/app
-RUN apk update && \
-  apk add \
-  build-base \
-  curl \
-  git \
-  libffi-dev \
-  openssh-client \
-  postgresql-dev
+RUN apt-get update && apt-get install -y curl git && apt-get clean
 
-ENV POETRY_HOME=/opt/poetry \
-    VENV=/usr/src/app/.venv
-ENV PATH="$POETRY_HOME/bin:$VENV/bin:$PATH"
+# Install and configure poetry
+ENV POETRY_VERSION=1.1.11
+ENV POETRY_HOME=/opt/poetry
+RUN curl -sSL https://install.python-poetry.org | python -
 
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
-RUN poetry config virtualenvs.create true; poetry config virtualenvs.in-project true
+ENV PATH="/opt/poetry/bin:$PATH"
+RUN poetry config virtualenvs.in-project true
 
 COPY ./pyproject.toml ./poetry.lock ./
 RUN mkdir echo_agent && touch echo_agent/__init__.py
 RUN poetry install --no-dev -E server
 RUN poetry run pip install uvicorn
 
-FROM python:3.7-alpine as main
+FROM python:3.10-slim-buster AS main
 WORKDIR /usr/src/app
 COPY --from=base /usr/src/app /usr/src/app
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
