@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "echo-agent"
-version = "0.1.2"
+version = "0.2.0"
 description = "A \"hollow\" agent for use in testing"
 authors = ["Daniel Bluhm <dbluhm@pm.me>"]
 license = "Apache-2.0"

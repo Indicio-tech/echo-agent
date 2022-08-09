@@ -761,12 +761,12 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 
 [extras]
 client = ["httpx"]
-server = ["fastapi", "aries-staticagent", "aiohttp"]
+server = ["fastapi", "aries-staticagent", "aiohttp", "pydantic"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "1666325a394335db9e6d14f353557e063245f8470ac9909c4335d5877a621f45"
+content-hash = "13b9a15afc5f1ab859aca14c28a12d92d56d01a02f88e23eec2621bb7bb33ecd"
 
 [metadata.files]
 aiohttp = []
