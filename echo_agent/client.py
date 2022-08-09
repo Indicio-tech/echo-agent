@@ -1,7 +1,7 @@
 """Client to Echo Agent."""
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import asdict
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from httpx import AsyncClient
 
@@ -37,7 +37,11 @@ class EchoClient(AbstractAsyncContextManager):
             await self.client.__aexit__(exc_type, exc_value, traceback)
 
     async def new_connection(
-        self, seed: str, endpoint: str, their_vk: str
+        self,
+        seed: str,
+        endpoint: str,
+        recipient_keys: Optional[Sequence[str]] = None,
+        routing_keys: Optional[Sequence[str]] = None,
     ) -> ConnectionInfo:
         if not self.client:
             raise NoOpenClient(
@@ -46,7 +50,14 @@ class EchoClient(AbstractAsyncContextManager):
 
         response = await self.client.post(
             "/connection",
-            json=asdict(NewConnection(seed=seed, endpoint=endpoint, their_vk=their_vk)),
+            json=asdict(
+                NewConnection(
+                    seed=seed,
+                    endpoint=endpoint,
+                    recipient_keys=recipient_keys or [],
+                    routing_keys=routing_keys or [],
+                )
+            ),
         )
 
         if response.is_error:

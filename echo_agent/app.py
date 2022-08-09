@@ -28,21 +28,31 @@ from aries_staticagent import (
 from aries_staticagent.utils import ensure_key_b58
 from fastapi import Body, FastAPI, HTTPException, Request
 
-# from pydantic import dataclasses
+from pydantic.dataclasses import dataclass
 
 from .webhook_queue import Queue
 
 from .session import Session, SessionMessage
 from .models import (
     NewConnection,
-    ConnectionInfo,  # as ConnectionInfoDataclass,
+    ConnectionInfo as ConnectionInfoModel,
     SessionInfo,
-    Webhook,  # as WebhookDataclass,
+    Webhook as WebhookModel,
 )
 
-# Dataclass to Pydantic conversion
-# ConnectionInfo = dataclasses.dataclass(ConnectionInfoDataclass)
-# Webhook = dataclasses.dataclass(WebhookDataclass)
+
+# Convert dataclasses to pydantic dataclasses
+# See this issue for why this is necessary:
+# https://github.com/tiangolo/fastapi/issues/5138
+@dataclass
+class ConnectionInfo(ConnectionInfoModel):
+    pass
+
+
+@dataclass
+class Webhook(WebhookModel):
+    pass
+
 
 # Logging
 LOGGER = logging.getLogger("uvicorn.error." + __name__)
@@ -68,19 +78,22 @@ async def new_connection(new_connection: NewConnection):
     """Create a new static connection."""
     LOGGER.debug("Creating new connection from request: %s", new_connection)
     dispatcher = QueueDispatcher()
-    conn = Connection.from_seed(
-        seed=new_connection.seed.encode("ascii"),
-        target=Target(
-            endpoint=new_connection.endpoint,
-            their_vk=new_connection.their_vk,
-            recipients=new_connection.recipient_keys,
-            routing_keys=new_connection.routing_keys,
-        ),
-        dispatcher=dispatcher,
-    )
+    try:
+        conn = Connection.from_seed(
+            seed=new_connection.seed.encode("ascii"),
+            target=Target(
+                endpoint=new_connection.endpoint,
+                recipients=new_connection.recipient_keys,
+                routing_keys=new_connection.routing_keys,
+            ),
+            dispatcher=dispatcher,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
 
     # Type narrowing
     assert conn.target.recipients
+    assert conn.target.endpoint
 
     # Store state
     connection_id = str(uuid4())
@@ -93,7 +106,6 @@ async def new_connection(new_connection: NewConnection):
         connection_id=connection_id,
         did=conn.did,
         verkey=conn.verkey_b58,
-        their_vk=ensure_key_b58(conn.target.recipients[0]),
         endpoint=conn.target.endpoint,
         recipient_keys=[ensure_key_b58(recip) for recip in conn.target.recipients],
         routing_keys=[
@@ -129,11 +141,17 @@ async def get_connections() -> List[ConnectionInfo]:
             connection_id=connection_id,
             did=conn.did,
             verkey=conn.verkey_b58,
-            their_vk=crypto.bytes_to_b58(conn.target.recipients[0]),
-            endpoint=conn.target.endpoint,
+            endpoint=conn.target.endpoint or "",
+            recipient_keys=[
+                crypto.bytes_to_b58(key_bytes)
+                for key_bytes in conn.target.recipients or []
+            ],
+            routing_keys=[
+                crypto.bytes_to_b58(key_bytes)
+                for key_bytes in conn.target.routing_keys or []
+            ],
         )
         for connection_id, conn in connections.items()
-        if conn.target and conn.target.recipients
     ]
 
 

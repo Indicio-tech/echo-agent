@@ -51,12 +51,14 @@ def connection_id(test_conn):
 
 
 @pytest.fixture
-def conn_info(connection_id, conn, target):
+def conn_info(connection_id: str, conn: Connection, target: Target):
+    assert target.recipients
+    assert target.endpoint
     yield ConnectionInfo(
         connection_id=connection_id,
         did=conn.did,
         verkey=conn.verkey_b58,
-        their_vk=crypto.bytes_to_b58(target.recipients[0]),
+        recipient_keys=[crypto.bytes_to_b58(recip) for recip in target.recipients],
         endpoint=target.endpoint,
     )
 
@@ -64,14 +66,18 @@ def conn_info(connection_id, conn, target):
 @pytest.mark.asyncio
 async def test_new_conn_x_not_open(echo_client: EchoClient):
     with pytest.raises(NoOpenClient):
-        await echo_client.new_connection(seed="test", endpoint="test", their_vk="test")
+        await echo_client.new_connection(
+            seed="test", endpoint="test", recipient_keys=["test"]
+        )
 
 
 @pytest.mark.asyncio
 async def test_new_conn(echo_client: EchoClient):
     async with echo_client:
         conn = await echo_client.new_connection(
-            seed="test0000000000000000000000000000", endpoint="test", their_vk="test"
+            seed="test0000000000000000000000000000",
+            endpoint="test",
+            recipient_keys=["test"],
         )
         assert conn.connection_id in connections
 
