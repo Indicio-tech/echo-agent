@@ -1,8 +1,8 @@
 import asyncio
 from uuid import uuid4
 
+from async_selective_queue import AsyncSelectiveQueue as Queue
 from aries_staticagent import Connection, Target, crypto
-from aries_staticagent.dispatcher.queue_dispatcher import QueueDispatcher
 from aries_staticagent.message import Message
 import pytest
 
@@ -30,12 +30,11 @@ def target(recip: Connection):
 
 
 @pytest.fixture
-def test_conn(target):
-    dispatcher = QueueDispatcher()
-    conn = Connection.random(target=target, dispatcher=dispatcher)
+async def test_conn(target):
+    conn = Connection.random(target=target)
     connection_id = str(uuid4())
     connections[connection_id] = conn
-    messages[connection_id] = dispatcher.queue
+    messages[connection_id] = Queue()
     recip_key_to_connection_id[conn.verkey_b58] = connection_id
     yield connection_id, conn
 

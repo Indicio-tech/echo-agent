@@ -20,8 +20,6 @@ from uuid import uuid4
 from aries_staticagent import (
     Connection,
     Message,
-    MsgQueue,
-    QueueDispatcher,
     Target,
     crypto,
 )
@@ -60,7 +58,7 @@ LOGGER = logging.getLogger("uvicorn.error." + __name__)
 connections: Dict[str, Connection] = {}
 sessions: Dict[str, Session] = {}
 recip_key_to_connection_id: Dict[str, str] = {}
-messages: Dict[str, MsgQueue] = {}
+messages: Dict[str, Queue[Message]] = {}
 webhooks: Queue[Webhook] = Queue()
 
 
@@ -76,7 +74,7 @@ async def setup_webhook_queue():
 async def new_connection(new_connection: NewConnection):
     """Create a new static connection."""
     LOGGER.debug("Creating new connection from request: %s", new_connection)
-    dispatcher = QueueDispatcher()
+    queue = Queue()
     try:
         conn = Connection.from_seed(
             seed=new_connection.seed.encode("ascii"),
@@ -85,7 +83,6 @@ async def new_connection(new_connection: NewConnection):
                 recipients=new_connection.recipient_keys,
                 routing_keys=new_connection.routing_keys,
             ),
-            dispatcher=dispatcher,
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -97,7 +94,7 @@ async def new_connection(new_connection: NewConnection):
     # Store state
     connection_id = str(uuid4())
     connections[connection_id] = conn
-    messages[connection_id] = dispatcher.queue
+    messages[connection_id] = queue
     recip_key_to_connection_id[conn.verkey_b58] = connection_id
 
     # Response
@@ -168,9 +165,10 @@ async def new_message(request: Request):
                 "Found connection %s for message recipient %s", connection_id, recipient
             )
             conn = connections[connection_id]
+            queue = messages[connection_id]
             unpacked = conn.unpack(message)
             LOGGER.debug("Unpacked message: %s", unpacked)
-            await conn.dispatch(unpacked)
+            await queue.put(unpacked)
             handled = True
     if not handled:
         LOGGER.warning("Received message that could not be handled: %s", message)
@@ -230,7 +228,7 @@ async def get_message(
     queue = messages[connection_id]
     if wait:
         try:
-            message = await queue.get(condition=_condition, timeout=timeout)
+            message = await queue.get(select=_condition, timeout=timeout)
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=408,
@@ -240,7 +238,7 @@ async def get_message(
                 ),
             )
     else:
-        message = queue.get_nowait(condition=_condition)
+        message = queue.get_nowait(select=_condition)
 
     if not message:
         raise HTTPException(
