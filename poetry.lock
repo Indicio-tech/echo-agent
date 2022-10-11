@@ -88,6 +88,14 @@ typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 tests = ["pytest", "pytest-asyncio", "mypy (>=0.800)"]
 
 [[package]]
+name = "async-selective-queue"
+version = "0.1.0.post0"
+description = "Async queue with selective retrieval"
+category = "main"
+optional = false
+python-versions = ">=3.7,<4.0"
+
+[[package]]
 name = "async-timeout"
 version = "4.0.2"
 description = "Timeout context manager for asyncio programs"
@@ -222,7 +230,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "coverage"
-version = "6.4.3"
+version = "6.5.0"
 description = "Code coverage measurement for Python"
 category = "dev"
 optional = false
@@ -766,7 +774,7 @@ server = ["fastapi", "aries-staticagent", "aiohttp", "pydantic"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "13b9a15afc5f1ab859aca14c28a12d92d56d01a02f88e23eec2621bb7bb33ecd"
+content-hash = "7ad7a06cec9fbf2f4b8c2f0b4417bf3a531b0f921ddd7076c1628f7eaecabe73"
 
 [metadata.files]
 aiohttp = []
@@ -774,6 +782,7 @@ aiosignal = []
 anyio = []
 aries-staticagent = []
 asgiref = []
+async-selective-queue = []
 async-timeout = []
 asynctest = []
 atomicwrites = []
