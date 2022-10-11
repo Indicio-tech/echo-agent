@@ -1,6 +1,6 @@
 """Client to Echo Agent."""
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any, AsyncIterator, Dict, List, Mapping, Optional, Sequence, Union
 
 from httpx import AsyncClient
@@ -320,7 +320,10 @@ class EchoClient(AbstractAsyncContextManager):
 class ClientSession(SessionInfo):
     """Client session for easily sending and retrieving session messages."""
 
-    echo: EchoClient = field(kw_only=True)
+    def __init__(self, session_id: str, connection_id: str, *, echo: EchoClient):
+        """Initialize client session."""
+        super().__init__(session_id, connection_id)
+        self.echo = echo
 
     async def send_message(self, message: Mapping[str, Any]):
         """Send message to this session."""
