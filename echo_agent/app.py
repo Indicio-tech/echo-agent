@@ -61,6 +61,8 @@ recip_key_to_connection_id: Dict[str, str] = {}
 messages: Dict[str, Queue[Message]] = {}
 webhooks: Queue[Webhook] = Queue()
 
+# Defaults
+TIMEOUT = 5
 
 app = FastAPI(title="Echo Agent", version="0.1.0")
 
@@ -151,6 +153,34 @@ async def get_connections() -> List[ConnectionInfo]:
     ]
 
 
+@app.get(
+    "/connection/{connection_id}",
+    response_model=ConnectionInfo,
+    operation_id="get_connection",
+)
+async def get_connection(connection_id: str) -> ConnectionInfo:
+    """Get info for a connection."""
+    conn = connections.get(connection_id)
+    if not conn:
+        raise HTTPException(
+            status_code=404, detail=f"No connection id matching {connection_id}"
+        )
+
+    return ConnectionInfo(
+        connection_id=connection_id,
+        did=conn.did,
+        verkey=conn.verkey_b58,
+        endpoint=conn.target.endpoint or "",
+        recipient_keys=[
+            crypto.bytes_to_b58(key_bytes) for key_bytes in conn.target.recipients or []
+        ],
+        routing_keys=[
+            crypto.bytes_to_b58(key_bytes)
+            for key_bytes in conn.target.routing_keys or []
+        ],
+    )
+
+
 @app.post("/")
 @app.post("/message")
 async def new_message(request: Request):
@@ -205,7 +235,7 @@ async def get_message(
     msg_type: Optional[str] = None,
     wait: Optional[bool] = True,
     session_id: Optional[str] = None,
-    timeout: int = 5,
+    timeout: int = TIMEOUT,
 ):
     """Wait for a message matching criteria."""
 
@@ -330,7 +360,7 @@ async def get_webhooks(topic: Optional[str] = None):
 async def get_webhook(
     topic: Optional[str] = None,
     wait: Optional[bool] = True,
-    timeout: int = 5,
+    timeout: int = TIMEOUT,
 ):
     """Wait for a message matching criteria."""
 
