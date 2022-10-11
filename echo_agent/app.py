@@ -29,8 +29,7 @@ from aries_staticagent.utils import ensure_key_b58
 from fastapi import Body, FastAPI, HTTPException, Request
 
 from pydantic.dataclasses import dataclass
-
-from .webhook_queue import Queue
+from async_selective_queue import AsyncSelectiveQueue as Queue
 
 from .session import Session, SessionMessage
 from .models import (
@@ -70,7 +69,7 @@ app = FastAPI(title="Echo Agent", version="0.1.0")
 
 @app.on_event("startup")
 async def setup_webhook_queue():
-    await webhooks.setup()
+    webhooks._cond = asyncio.Condition()
 
 
 @app.post("/connection", response_model=ConnectionInfo, operation_id="new_connection")
@@ -342,14 +341,14 @@ async def get_webhook(
 
     if wait:
         try:
-            webhook = await webhooks.get(condition=_condition, timeout=timeout)
+            webhook = await webhooks.get(select=_condition, timeout=timeout)
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=408,
                 detail=("No webhook found before timeout"),
             )
     else:
-        webhook = webhooks.get_nowait(condition=_condition)
+        webhook = webhooks.get_nowait(select=_condition)
 
     if not webhook:
         raise HTTPException(
