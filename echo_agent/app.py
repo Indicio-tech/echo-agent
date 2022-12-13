@@ -181,7 +181,7 @@ async def get_connection(connection_id: str) -> ConnectionInfo:
     )
 
 
-async def handle_new_message(message: bytes):
+async def handle_new_message(message: bytes, session_id: Optional[str] = None):
     """Receive a new message."""
     LOGGER.debug("Message received: %s", message)
     handled = False
@@ -195,6 +195,9 @@ async def handle_new_message(message: bytes):
             queue = messages[connection_id]
             unpacked = conn.unpack(message)
             LOGGER.debug("Unpacked message: %s", unpacked)
+            if session_id:
+                unpacked = SessionMessage.from_message(session_id, unpacked)
+
             await queue.put(unpacked)
             handled = True
     if not handled:

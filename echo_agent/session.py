@@ -31,7 +31,7 @@ class Session:
     def __init__(
         self,
         connection: Connection,
-        new_message_handler: Callable[[bytes], Awaitable[None]],
+        new_message_handler: Callable[[bytes, Optional[str]], Awaitable[None]],
         endpoint: Optional[str] = None,
     ):
         self.id = str(uuid4())
@@ -62,7 +62,7 @@ class Session:
                     async for msg in socket:
                         LOGGER.debug("Received ws message: %s", msg)
                         if msg.type == aiohttp.WSMsgType.BINARY:
-                            await self.new_message_handler(msg.data)
+                            await self.new_message_handler(msg.data, self.id)
                         elif msg.type == aiohttp.WSMsgType.ERROR:
                             LOGGER.error(
                                 "ws connection closed with exception %s",

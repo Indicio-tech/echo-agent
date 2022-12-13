@@ -336,6 +336,7 @@ class ClientSession(SessionInfo):
     async def get_message(
         self,
         *,
+        connection: Optional[Union[str, ConnectionInfo]] = None,
         thid: Optional[str] = None,
         msg_type: Optional[str] = None,
         wait: Optional[bool] = True,
@@ -343,7 +344,7 @@ class ClientSession(SessionInfo):
     ) -> Mapping[str, Any]:
         """Get message for session."""
         return await self.echo.get_message(
-            self.connection_id,
+            connection or self.connection_id,
             session=self.session_id,
             thid=thid,
             msg_type=msg_type,
