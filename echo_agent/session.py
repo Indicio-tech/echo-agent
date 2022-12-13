@@ -4,7 +4,7 @@ from contextlib import suppress
 import logging
 from uuid import uuid4
 import aiohttp
-from typing import Optional, Union
+from typing import Awaitable, Callable, Optional, Union
 from aries_staticagent import Message, Connection
 
 
@@ -28,8 +28,14 @@ class SessionMessage(Message):
 class Session:
     """Session object."""
 
-    def __init__(self, connection: Connection, endpoint: Optional[str] = None):
+    def __init__(
+        self,
+        connection: Connection,
+        new_message_handler: Callable[[bytes], Awaitable[None]],
+        endpoint: Optional[str] = None,
+    ):
         self.id = str(uuid4())
+        self.new_message_handler = new_message_handler
         self.connection = connection
 
         if endpoint:
@@ -56,14 +62,7 @@ class Session:
                     async for msg in socket:
                         LOGGER.debug("Received ws message: %s", msg)
                         if msg.type == aiohttp.WSMsgType.BINARY:
-                            unpacked = self.connection.unpack(msg.data)
-                            LOGGER.debug(
-                                "Unpacked message from websocket: %s",
-                                unpacked.pretty_print(),
-                            )
-                            await self.connection.dispatch(
-                                SessionMessage.from_message(self.id, unpacked)
-                            )
+                            await self.new_message_handler(msg.data)
                         elif msg.type == aiohttp.WSMsgType.ERROR:
                             LOGGER.error(
                                 "ws connection closed with exception %s",

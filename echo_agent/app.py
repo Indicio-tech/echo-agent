@@ -181,11 +181,8 @@ async def get_connection(connection_id: str) -> ConnectionInfo:
     )
 
 
-@app.post("/")
-@app.post("/message")
-async def new_message(request: Request):
-    """Receive a new agent message and push onto the message queue."""
-    message = await request.body()
+async def handle_new_message(message: bytes):
+    """Receive a new message."""
     LOGGER.debug("Message received: %s", message)
     handled = False
     for recipient in crypto.recipients_from_packed_message(message):
@@ -202,6 +199,14 @@ async def new_message(request: Request):
             handled = True
     if not handled:
         LOGGER.warning("Received message that could not be handled: %s", message)
+
+
+@app.post("/")
+@app.post("/message")
+async def new_message(request: Request):
+    """Receive a new agent message and push onto the message queue."""
+    message = await request.body()
+    return await handle_new_message(message)
 
 
 @app.get(
@@ -303,7 +308,7 @@ async def open_session(connection_id: str, endpoint: Optional[str] = None):
         )
     conn = connections[connection_id]
 
-    session = Session(conn, endpoint)
+    session = Session(conn, handle_new_message, endpoint)
     sessions[session.id] = session
     session.open()
     return SessionInfo(session.id, connection_id)
