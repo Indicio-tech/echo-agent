@@ -9,22 +9,22 @@ on:
   pull_request:
 
 env:
-  FLAKE8_VERSION: 3.9.2
-  BLACK_VERSION: 21.8b0
+  FLAKE8_VERSION: 5.0.4
+  BLACK_VERSION: 23.3.0
 
 jobs:
   format:
     name: Format and Lint Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.6
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
         with:
-            python-version: 3.6
+            python-version: 3.9
       - name: Cache python environment
         id: cache-env
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
             path: env
             key: ${{ runner.os }}-format-lint-${{ env.FLAKE8_VERSION }}-${{ env.BLACK_VERSION }}-${{ hashFiles('.github/workflows/code-quality-check.yml') }}
