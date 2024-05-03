@@ -21,7 +21,7 @@ pre-commit = "^2.13.0"
 pytest = "^6.2.5"
 pytest-asyncio = "^0.15.1"
 pytest-cov = "^3.0.0"
-uvicorn = "^0.15.0"
+uvicorn = "^0.22.0"
 
 [tool.poetry.extras]
 client = ["httpx"]
