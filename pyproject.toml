@@ -9,7 +9,7 @@ license = "Apache-2.0"
 python = "^3.7"
 aries-staticagent = { git = "https://github.com/hyperledger/aries-staticagent-python", rev = "1f27f85cf72cc6a2e10a6495c85f2b21462362cd", optional = true }
 fastapi = { version = "^0.79.0", optional = true }
-pydantic = { version = "^1.9.1", optional = true }
+pydantic = { version = "^1.10.15", optional = true }
 httpx = { version = "^0.15.4", optional = true }
 aiohttp = { version = "^3.8.0", optional = true }
 async-selective-queue = "^0.1.0"
